@@ -1,120 +1,237 @@
-/* ===== app.js — экраны и логика курса ===== */
-const app=document.getElementById('app');
-const LS_KEY='alfa_minikurs_v1';
-const N=MODULES.length;
-let done=loadProgress();
-let view={s:'cover',m:0};
-let sceneCleanup=null;
+/* ===== app.js — движок Денди-курса ===== */
+const screen = document.getElementById('screen');
+const stage = document.getElementById('stage');
+const hud = document.getElementById('hud');
+const LS_KEY = 'alfa_dendy_v1';
+const N = WORLDS.length;
 
-function loadProgress(){
-  try{const d=JSON.parse(localStorage.getItem(LS_KEY));
-    if(Array.isArray(d)&&d.length===N)return d;}catch(e){}
-  return Array(N).fill(false);
+const State = load();
+function load(){
+  try{ const d=JSON.parse(localStorage.getItem(LS_KEY));
+    if(d && Array.isArray(d.done) && d.done.length===N) return d;
+  }catch(e){}
+  return { done:Array(N).fill(false), coins:0, lives:3, current:0 };
 }
-function saveProgress(){try{localStorage.setItem(LS_KEY,JSON.stringify(done));}catch(e){}}
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(State)); }catch(e){} }
 
-document.getElementById('yr').textContent=new Date().getFullYear();
-document.getElementById('homeBtn').onclick=()=>{view={s:'map'};render();};
-initStars();
+const REDUCE = matchMedia('(prefers-reduced-motion:reduce)').matches;
+if(REDUCE) document.body.classList.add('noflicker');
 
-function setGP(){document.getElementById('gp').style.width=(done.filter(Boolean).length/N*100)+'%';}
-
-function render(){
-  if(sceneCleanup){sceneCleanup();sceneCleanup=null;}
-  setGP();
-  if(view.s==='cover')cover();
-  else if(view.s==='map')map();
-  else if(view.s==='module')moduleView(view.m);
-  else finalView();
-  revealStagger(app);
-}
-
-function cover(){
-  const n=done.filter(Boolean).length;
-  app.innerHTML=`<div class="screen">
-    <div class="ey rv">Бесплатный мини-курс</div>
-    <h1 class="rv">Первый шаг в проектирование ЭОМ</h1>
-    <p class="lead rv">7 модулей: анимированная теория на реальных нормах (ПУЭ, СП 256, ГОСТ 31565, СП 6, СП 52) и 7 игр — соберёшь щит, рассчитаешь линию, защитишь дом от молнии и проведёшь «экспертизу».</p>
-    <div class="chips"><span class="chip rv"><b>7</b> модулей</span><span class="chip rv">анимации-истории</span><span class="chip rv"><b>7</b> игр</span><span class="chip rv"><b>0 ₽</b></span></div>
-    <button class="btn btn-gold full rv" id="go">${n>0?'Продолжить курс →':'Начать курс →'}</button>
-    <div class="hair"></div>
-    <p class="rv" style="color:var(--muted);font-size:14px;margin:0">Ведёт <b style="color:var(--ink)">Альберт Габдуллин</b> — основатель и директор проектного бюро «Альфа Инженер». За плечами бюро — 500+ проектов в 17+ регионах России.</p></div>`;
-  document.getElementById('go').onclick=()=>{view={s:'map'};render();};
+/* ---------- HUD ---------- */
+function updateHUD(show){
+  hud.classList.toggle('hidden', !show);
+  if(!show) return;
+  const cleared = State.done.filter(Boolean).length;
+  hud.innerHTML = `
+    <div class="l">
+      <span class="stat">МИР <b>${cleared}/${N}</b></span>
+      <span class="stat coin">◉ ${State.coins}</span>
+      <span class="stat heart">${'♥'.repeat(State.lives)}</span>
+    </div>
+    <div class="r">
+      <button class="hudbtn" id="mapBtn">КАРТА</button>
+      <button class="hudbtn" id="sndBtn">${Chip.isEnabled()?'♪ ON':'♪ OFF'}</button>
+    </div>`;
+  hud.querySelector('#mapBtn').onclick=()=>{ Chip.play('select'); showMap(); };
+  hud.querySelector('#sndBtn').onclick=()=>{
+    const on=!Chip.isEnabled(); Chip.setEnabled(on);
+    if(on){ Chip.resume(); Chip.startMusic(); } else { Chip.stopMusic(); }
+    updateHUD(true);
+  };
 }
 
-function map(){
-  const n=done.filter(Boolean).length;
-  app.innerHTML=`<div class="screen">
-    <div class="ey rv">Программа курса</div>
-    <h2 class="rv">${n===N?'Курс пройден 🎉':'Выбери модуль'}</h2>
-    <p class="lead rv" style="font-size:15px">${n}/${N} пройдено. Сначала теория с анимацией, затем игра на закрепление. Прогресс сохраняется.</p>
-    <div class="mods">${MODULES.map((m,i)=>{
-      const unlocked=i===0||done[i-1]||done[i],isDone=done[i];
-      return `<div class="mod rv ${isDone?'done':''}" data-i="${i}" aria-disabled="${!unlocked}">
-        <div class="mnum">${isDone?'✓':m.icon}</div>
-        <div class="mtext"><h3>${m.title}</h3><p>${m.sub}</p></div>
-        <div class="mstate ${isDone?'ok':''}">${isDone?'Пройдено':(unlocked?'Открыть →':'🔒')}</div></div>`;}).join('')}</div>
-    ${n===N?`<div style="margin-top:20px"><button class="btn btn-gold full rv" id="final">К финалу и сертификату →</button></div>`:''}</div>`;
-  app.querySelectorAll('.mod').forEach(el=>{
-    if(el.getAttribute('aria-disabled')==='true')return;
-    el.onclick=()=>{view={s:'module',m:+el.dataset.i};render();};});
-  const f=document.getElementById('final');
-  if(f)f.onclick=()=>{view={s:'done'};render();};
+/* ---------- 1. СТАРТ + звук-гейт ---------- */
+function showStart(){
+  updateHUD(false);
+  stage.innerHTML = `<div class="view"><div class="center">
+    <div class="logo-spark">⚡</div>
+    <div class="title">АЛЬФА ИНЖЕНЕР</div>
+    <div class="subtitle">Q U E S T &nbsp;·&nbsp; ЭОМ 8-BIT</div>
+    <div class="pixtext" style="max-width:520px;margin-top:6px">Пройди 7 миров, собери щит, обуздай молнию и победи БОССА-ЭКСПЕРТИЗУ. Проектируй как герой!</div>
+    <button class="btn" id="press" style="margin-top:10px">▶ PRESS START</button>
+    <div class="copyfoot">(C) ${new Date().getFullYear()} АЛЬФА ИНЖЕНЕР · ОБУЧАЮЩАЯ ИГРА<br>Ведёт Альберт Габдуллин — основатель и директор проектного бюро</div>
+  </div></div>`;
+  stage.querySelector('#press').onclick=()=>{
+    Chip.init(); Chip.resume(); Chip.play('start');
+    setTimeout(()=>{ if(Chip.isEnabled()) Chip.startMusic(); }, 700);
+    showMap();
+  };
 }
 
-function moduleView(i){
-  const m=MODULES[i];
-  app.innerHTML=`<div class="screen">
-    <div class="ey rv">Модуль ${m.icon} · ${done.filter(Boolean).length}/${N}</div>
-    <h2 class="rv">${m.title}</h2>
-    <p class="sect-label rv" style="margin-top:4px">Как это работает · анимация</p>
-    <div id="storybox"></div>
-    <div class="card les" id="les">${m.lesson}</div>
-    <div class="hair"></div>
-    <p class="sect-label rv">Игра на закрепление</p>
-    <div id="act"></div></div>`;
-  sceneCleanup=mountScene(document.getElementById('storybox'),SCENES[m.scene]);
-  document.getElementById('les').querySelectorAll('p,h4,li,.note,.norm').forEach(e=>e.classList.add('rv'));
-  GAMES[m.game](document.getElementById('act'),i);
-  revealStagger(app);
+/* ---------- 2. КАРТА-МИР ---------- */
+function showMap(){
+  // текущий = первый непройденный
+  let cur = State.done.findIndex(d=>!d);
+  if(cur<0) cur = N-1;
+  State.current = cur; save();
+  updateHUD(true);
+  const allDone = State.done.every(Boolean);
+  stage.innerHTML = `<div class="view"><div style="text-align:center;margin-bottom:12px">
+      <div class="title" style="font-size:clamp(12px,3.4vw,20px)">${allDone?'★ ВСЕ МИРЫ ПРОЙДЕНЫ ★':'ВЫБЕРИ УРОВЕНЬ'}</div></div>
+    <div id="mapHost"></div>
+    <div class="mini-map-legend">✓ пройдено · ● доступно · 🔒 закрыто${allDone?'':' · пройди по порядку'}</div>
+    ${allDone?'<div class="btnrow" style="justify-content:center"><button class="btn green" id="fin">★ ФИНАЛ И КУБОК ★</button></div>':''}
+  </div>`;
+  renderWorldMap(document.getElementById('mapHost'), {
+    done:State.done, current:cur, onPick:(i)=>enterLevel(i)
+  });
+  const fin=document.getElementById('fin');
+  if(fin) fin.onclick=()=>{ Chip.play('powerup'); showVictory(); };
 }
 
-function completeBtn(i){
-  const wrap=document.createElement('div');wrap.style.marginTop='18px';
-  const b=document.createElement('button');b.className='btn btn-gold full';
-  b.textContent=i<N-1?'Модуль пройден · дальше →':'Модуль пройден · к финалу →';
-  b.onclick=()=>{done[i]=true;saveProgress();view=(i<N-1)?{s:'module',m:i+1}:{s:'done'};render();};
-  wrap.appendChild(b);
-  const back=document.createElement('button');back.className='btn btn-ghost';back.style.marginTop='10px';
-  back.textContent='← К программе';
-  back.onclick=()=>{done[i]=true;saveProgress();view={s:'map'};render();};
-  wrap.appendChild(back);
-  return wrap;
+/* ---------- 3. УРОВЕНЬ: интро-диалог -> игра ---------- */
+function enterLevel(i){
+  const w = WORLDS[i];
+  updateHUD(true);
+  Chip.play('levelup');
+  // "заставка мира" на миг
+  stage.innerHTML = `<div class="view"><div class="center">
+    <div class="pixtext hl-b">МИР ${w.code}</div>
+    <div class="title" style="font-size:clamp(14px,4vw,24px)">${w.name}</div>
+    <div class="stars8">${'★'.repeat(3)}</div>
+  </div></div>`;
+  setTimeout(()=>dialog(i,0), 1100);
 }
 
-function finalView(){
-  app.innerHTML=`<div class="screen">
-    <div class="cert rv"><div class="seal">◆ Альфа Инженер ◆</div>
-    <div class="ring"><svg width="150" height="150" viewBox="0 0 150 150">
-      <circle cx="75" cy="75" r="66" fill="none" stroke="#2a323b" stroke-width="8"/>
-      <circle id="rc" cx="75" cy="75" r="66" fill="none" stroke="#d8b877" stroke-width="8" stroke-linecap="round"
-        stroke-dasharray="0 999" transform="rotate(-90 75 75)"
-        style="transition:stroke-dasharray 1.3s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 0 6px rgba(216,184,119,.5))"/></svg>
-      <div class="v"><b id="pctv">0%</b><span style="font-size:10px;color:var(--muted);letter-spacing:.15em">ПРОЙДЕНО</span></div></div>
-    <h2 style="margin:6px 0 8px">Мини-курс пройден!</h2>
-    <p style="color:#cdd5dd;margin:0 auto;max-width:46ch">Ты собрал щит, рассчитал линии, защитил дом от молнии, нормировал свет и провёл «экспертизу» — это настоящая база проектировщика ЭОМ. Дальше — глубина и реальные проекты.</p></div>
-    <div class="offer rv"><div class="ey" style="margin-bottom:8px">Следующий шаг</div>
-      <h3>Полный курс «Проектирование систем электроснабжения»</h3>
-      <p>Здесь ты попробовал в миниатюре. На полном курсе — реальные проекты от задания до сдачи в экспертизу, шаблоны, наставник и первый проект в портфолио.</p>
-      <a class="btn btn-gold full" href="${COURSE_URL}" target="_blank" rel="noopener">Забрать курс со скидкой →</a>
-      <button class="btn btn-ghost" id="restart" style="margin-top:10px">↻ Пройти мини-курс заново</button></div></div>`;
-  const circ=2*Math.PI*66;
-  requestAnimationFrame(()=>document.getElementById('rc').setAttribute('stroke-dasharray',`${circ} 999`));
-  const pv=document.getElementById('pctv');let cur=0;
-  const ci=setInterval(()=>{cur=Math.min(100,cur+3);pv.textContent=cur+'%';if(cur>=100)clearInterval(ci);},22);
-  confettiBurst();
-  document.getElementById('restart').onclick=()=>{
-    done=Array(N).fill(false);saveProgress();view={s:'cover'};render();};
+/* печать текста реплик тренёра */
+function dialog(i, line){
+  const w=WORLDS[i];
+  const total=w.intro.length;
+  stage.innerHTML = `<div class="view">
+    <div style="margin-bottom:12px"><span class="pixtext hl-b">МИР ${w.code}</span> <span class="pixtext hl-y">${w.name}</span></div>
+    <div class="box blue">
+      <div class="dlg">
+        ${sparkAvatar()}
+        <div class="speech">
+          <div class="name">ИСКРА</div>
+          <div class="txt typed" id="txt"></div>
+        </div>
+      </div>
+      <div class="progressbar"><i style="width:${(line/total*100)}%"></i></div>
+      <div class="btnrow" style="justify-content:space-between">
+        <button class="btn sm gray" id="skip">ПРОПУСТИТЬ</button>
+        <button class="btn sm" id="next">${line<total-1?'ДАЛЕЕ >':'НАЧАТЬ ИГРУ >'}</button>
+      </div>
+    </div>
+    <div class="norms"><div class="h">📘 НОРМЫ МИРА</div>${w.norms.map(n=>'§ '+n).join('<br>')}</div>
+  </div>`;
+  const txtEl=stage.querySelector('#txt');
+  typeText(txtEl, w.intro[line]);
+  const goGame=()=>startGame(i);
+  stage.querySelector('#next').onclick=()=>{ Chip.play('select');
+    if(line<total-1) dialog(i,line+1); else goGame(); };
+  stage.querySelector('#skip').onclick=()=>{ Chip.play('select'); goGame(); };
 }
 
-render();
+let typeTimer=null;
+function typeText(el, text){
+  clearInterval(typeTimer);
+  if(REDUCE){ el.textContent=text; el.classList.remove('typed'); return; }
+  el.textContent=''; el.classList.add('typed');
+  let k=0;
+  typeTimer=setInterval(()=>{
+    el.textContent = text.slice(0,k+1);
+    if(k%2===0) Chip.play('tick');
+    k++;
+    if(k>=text.length){ clearInterval(typeTimer); el.classList.remove('typed'); }
+  }, 28);
+}
+
+/* ---------- игра мира ---------- */
+function startGame(i){
+  clearInterval(typeTimer);
+  const w=WORLDS[i];
+  updateHUD(true);
+  stage.innerHTML=`<div class="view">
+    <div style="margin-bottom:12px"><span class="pixtext hl-b">МИР ${w.code}</span> <span class="pixtext hl-y">${w.name}</span></div>
+    <div id="gameHost"></div>
+  </div>`;
+  const host=document.getElementById('gameHost');
+  const fn = GAME_FN[w.game.type];
+  fn(host, w.game, ()=>completeLevel(i));
+}
+
+function completeLevel(i){
+  if(!State.done[i]){
+    State.done[i]=true;
+    State.coins += 100;
+    save();
+  }
+  Chip.play('win');
+  const w=WORLDS[i];
+  const allDone=State.done.every(Boolean);
+  updateHUD(true);
+  stage.innerHTML=`<div class="view"><div class="center" style="gap:16px">
+    <div class="stars8">★ ★ ★</div>
+    <div class="title" style="font-size:clamp(12px,3.4vw,20px)">МИР ${w.code} ПРОЙДЕН!</div>
+    <div class="pixtext hl-y">+100 ◉  (всего ${State.coins})</div>
+    <div class="pixtext sm hl-gray" style="max-width:440px">${w.norms[0]}</div>
+    <div class="btnrow" style="justify-content:center">
+      ${allDone?'<button class="btn green" id="go">★ К ФИНАЛУ ★</button>'
+               :'<button class="btn" id="go">СЛЕДУЮЩИЙ МИР ></button>'}
+      <button class="btn gray sm" id="map">КАРТА</button>
+    </div>
+  </div></div>`;
+  stage.querySelector('#go').onclick=()=>{ Chip.play('select'); allDone?showVictory():showMap(); };
+  stage.querySelector('#map').onclick=()=>{ Chip.play('select'); showMap(); };
+}
+
+/* ---------- ФИНАЛ ---------- */
+function showVictory(){
+  updateHUD(true);
+  Chip.stopMusic(); Chip.play('win');
+  confettiPixels();
+  stage.innerHTML=`<div class="view"><div class="center" style="gap:16px">
+    <div class="trophy">🏆</div>
+    <div class="stars8">★ ★ ★ ★ ★</div>
+    <div class="title" style="font-size:clamp(14px,4vw,24px)">ПОБЕДА!</div>
+    <div class="pixtext" style="max-width:500px;line-height:2.2">Ты прошёл все 7 миров: собрал щит, рассчитал линии, укротил молнию, нормировал свет и одолел БОССА-ЭКСПЕРТИЗУ. Это настоящая база проектировщика ЭОМ!</div>
+    <div class="pixtext hl-y">СЧЁТ: ${State.coins} ◉</div>
+    <div class="box gold" style="max-width:520px;margin-top:6px">
+      <div class="pixtext hl-o" style="margin-bottom:10px">СЛЕДУЮЩИЙ УРОВЕНЬ РЕАЛЕН:</div>
+      <div class="pixtext sm" style="line-height:2">Полный курс «Проектирование систем электроснабжения» — реальные проекты от задания до экспертизы, шаблоны и наставник.</div>
+      <a class="btn full green" style="margin-top:14px;text-decoration:none;display:block" href="${COURSE_URL}" target="_blank" rel="noopener">★ ЗАБРАТЬ КУРС ★</a>
+    </div>
+    <button class="btn gray sm" id="restart" style="margin-top:8px">↻ НАЧАТЬ ЗАНОВО</button>
+  </div></div>`;
+  stage.querySelector('#restart').onclick=()=>{
+    Chip.play('select');
+    State.done=Array(N).fill(false); State.coins=0; State.current=0; save();
+    showMap();
+  };
+}
+
+/* ---------- пиксельное конфетти ---------- */
+function confettiPixels(){
+  if(REDUCE) return;
+  const c=document.createElement('canvas');
+  c.style.cssText='position:absolute;inset:0;z-index:95;pointer-events:none';
+  screen.appendChild(c);
+  const x=c.getContext('2d'); c.width=innerWidth; c.height=innerHeight;
+  const cols=['#f8d800','#3cbcfc','#58f898','#f83800','#6844fc','#fcfcfc'];
+  let P=Array.from({length:90},()=>({x:Math.random()*c.width,y:-10-Math.random()*c.height,
+    s:4+Math.random()*4,vy:2+Math.random()*4,vx:(Math.random()-.5)*2,c:cols[(Math.random()*cols.length)|0]}));
+  let t=0;
+  (function loop(){ t++; x.clearRect(0,0,c.width,c.height);
+    P.forEach(p=>{ p.y+=p.vy; p.x+=p.vx; if(p.y>c.height) p.y=-10;
+      x.fillStyle=p.c; x.fillRect(p.x|0,p.y|0,p.s,p.s); });
+    if(t<260) requestAnimationFrame(loop); else c.remove();
+  })();
+}
+
+/* ---------- спрайты для диалога ---------- */
+function sparkAvatar(){
+  return `<svg class="avatar" viewBox="0 0 32 32">
+    <rect x="10" y="12" width="12" height="12" fill="#3cbcfc"/>
+    <rect x="8" y="14" width="16" height="8" fill="#0078f8"/>
+    <rect x="8" y="4" width="16" height="8" fill="#f8d800"/>
+    <rect x="10" y="1" width="12" height="4" fill="#fca044"/>
+    <rect x="11" y="7" width="10" height="5" fill="#fcd8a8"/>
+    <rect x="13" y="8" width="2" height="2" fill="#0d0b16"/>
+    <rect x="17" y="8" width="2" height="2" fill="#0d0b16"/>
+    <rect x="14" y="11" width="4" height="1" fill="#0d0b16"/>
+  </svg>`;
+}
+
+/* ---------- запуск ---------- */
+showStart();
