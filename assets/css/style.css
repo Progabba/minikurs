@@ -241,3 +241,20 @@ h1,h2,h3{margin:0;line-height:1.3}
   .view{padding:12px 10px}
   .box{padding:12px}
 }
+
+/* ===== апгрейд: боссы, тряска, HP, анимации ===== */
+#screen.shake{animation:screenShake .4s steps(4)}
+@keyframes screenShake{0%,100%{transform:translate(0,0)}25%{transform:translate(-4px,2px)}50%{transform:translate(4px,-2px)}75%{transform:translate(-2px,-3px)}}
+
+.bossbar{margin-bottom:14px;text-align:center}
+.bossname{font-size:clamp(9px,2.6vw,13px);color:var(--nes-red);text-shadow:2px 2px 0 var(--nes-black);margin-bottom:8px}
+.hpouter{height:14px;background:var(--nes-dark);border:3px solid var(--nes-white);box-shadow:0 0 0 3px var(--nes-black);overflow:hidden}
+.hpbar{display:block;height:100%;width:100%;background:var(--nes-red);transition:width .3s steps(6);
+  background-image:repeating-linear-gradient(90deg,var(--nes-red) 0 6px,var(--nes-red2) 6px 12px)}
+.hpbar.low{background:var(--nes-red2);animation:bl .4s steps(2) infinite}
+.bosssprite{margin-top:10px;display:inline-block}
+.bosssprite.bosshit{animation:bosshit .3s steps(3)}
+@keyframes bosshit{0%,100%{filter:none}50%{filter:brightness(3) hue-rotate(-30deg)}}
+
+/* сцена в диалоге — рамка убрана, canvas сам */
+#sceneBox canvas{margin:0 auto}
