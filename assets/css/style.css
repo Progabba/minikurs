@@ -1,0 +1,260 @@
+/* ===== Денди-курс · 8-битные стили ===== */
+:root{
+  --nes-black:#0d0b16; --nes-dark:#14122a; --nes-navy:#1c1a3a;
+  --nes-blue:#3cbcfc; --nes-blue2:#0078f8; --nes-red:#f83800; --nes-red2:#e40058;
+  --nes-green:#00b800; --nes-green2:#58f898; --nes-yellow:#f8d800; --nes-gold:#fca044;
+  --nes-white:#fcfcfc; --nes-gray:#7c7c7c; --nes-purple:#6844fc; --nes-brown:#a44200;
+  --ink:#fcfcfc;
+  --font:'Press Start 2P', 'Courier New', monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  font-family:var(--font);
+  background:var(--nes-black);
+  color:var(--ink);
+  image-rendering:pixelated;
+  -webkit-font-smoothing:none;
+  overflow:hidden;
+  user-select:none;
+  line-height:1.5;
+}
+/* пиксель-шрифт с фолбэком */
+@font-face{
+  font-family:'Press Start 2P';
+  src:local('Press Start 2P');
+}
+
+/* ===== игровой экран с CRT ===== */
+#screen{
+  position:relative;
+  width:100vw;height:100dvh;
+  overflow:hidden;
+  background:var(--nes-black);
+}
+#stage{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+}
+/* CRT-эффекты */
+#crt{position:absolute;inset:0;z-index:90;pointer-events:none}
+#crt::before{ /* скан-линии */
+  content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(0deg,
+    rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px,
+    rgba(0,0,0,.22) 3px, rgba(0,0,0,.22) 4px);
+  mix-blend-mode:multiply;
+}
+#crt::after{ /* виньетка + выпуклость */
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(120% 120% at 50% 50%, transparent 55%, rgba(0,0,0,.55) 100%);
+  box-shadow:inset 0 0 120px rgba(0,0,0,.7);
+}
+body.noflicker #flick{display:none}
+#flick{position:absolute;inset:0;z-index:91;pointer-events:none;background:rgba(60,188,252,.03);
+  animation:flick .12s steps(2) infinite}
+@keyframes flick{0%{opacity:.6}100%{opacity:1}}
+@media(prefers-reduced-motion:reduce){#flick{display:none}#crt::before{animation:none}}
+
+/* базовый макет "экрана" консоли — 4:3-ish, но адаптивно */
+.view{
+  position:relative;z-index:10;
+  width:min(96vw, 900px);
+  max-height:96dvh;
+  padding:20px 18px;
+  overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:var(--nes-blue) var(--nes-dark);
+}
+.view::-webkit-scrollbar{width:8px}
+.view::-webkit-scrollbar-thumb{background:var(--nes-blue)}
+.view::-webkit-scrollbar-track{background:var(--nes-dark)}
+
+/* пиксельные рамки (box) */
+.box{
+  background:var(--nes-navy);
+  border:4px solid var(--nes-white);
+  box-shadow:
+    0 0 0 4px var(--nes-black),
+    4px 4px 0 4px rgba(0,0,0,.5);
+  padding:16px;
+  position:relative;
+}
+.box.blue{border-color:var(--nes-blue)}
+.box.red{border-color:var(--nes-red)}
+.box.green{border-color:var(--nes-green2)}
+.box.gold{border-color:var(--nes-gold)}
+
+/* заголовки/текст */
+h1,h2,h3{margin:0;line-height:1.3}
+.title{font-size:clamp(14px,4.2vw,26px);color:var(--nes-yellow);text-shadow:3px 3px 0 var(--nes-red2), 6px 6px 0 rgba(0,0,0,.6)}
+.subtitle{font-size:clamp(8px,2.4vw,11px);color:var(--nes-blue);margin-top:12px;line-height:1.9}
+.pixtext{font-size:clamp(7px,2vw,10px);line-height:2;color:var(--ink)}
+.pixtext.sm{font-size:clamp(6px,1.7vw,8px);line-height:2.1}
+.hl-y{color:var(--nes-yellow)} .hl-b{color:var(--nes-blue)} .hl-g{color:var(--nes-green2)}
+.hl-r{color:var(--nes-red)} .hl-o{color:var(--nes-gold)} .hl-gray{color:var(--nes-gray)}
+.blink{animation:bl 1s steps(2) infinite}
+@keyframes bl{50%{opacity:0}}
+
+/* кнопки */
+.btn{
+  font-family:var(--font);
+  font-size:clamp(8px,2.4vw,11px);
+  color:var(--nes-black);
+  background:var(--nes-yellow);
+  border:none;
+  padding:12px 16px;
+  cursor:pointer;
+  box-shadow:4px 4px 0 var(--nes-black), inset -3px -3px 0 rgba(0,0,0,.28), inset 3px 3px 0 rgba(255,255,255,.5);
+  transition:transform .05s;
+  text-transform:uppercase;
+}
+.btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--nes-black), inset -3px -3px 0 rgba(0,0,0,.28)}
+.btn.blue{background:var(--nes-blue);color:var(--nes-white)}
+.btn.green{background:var(--nes-green);color:var(--nes-white)}
+.btn.red{background:var(--nes-red);color:var(--nes-white)}
+.btn.gray{background:var(--nes-gray);color:var(--nes-white)}
+.btn.full{width:100%}
+.btn.sm{font-size:clamp(7px,1.9vw,9px);padding:9px 12px;box-shadow:3px 3px 0 var(--nes-black), inset -2px -2px 0 rgba(0,0,0,.28), inset 2px 2px 0 rgba(255,255,255,.5)}
+.btnrow{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px}
+
+/* ===== HUD (верхняя панель как в игре) ===== */
+#hud{
+  position:absolute;top:0;left:0;right:0;z-index:60;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 14px;
+  font-size:clamp(7px,2vw,10px);
+  background:linear-gradient(var(--nes-black),rgba(13,11,22,.6));
+  pointer-events:none;
+}
+#hud .l,#hud .r{display:flex;gap:14px;align-items:center}
+#hud .stat{color:var(--nes-white)}
+#hud .stat b{color:var(--nes-yellow)}
+.coin{color:var(--nes-yellow)}
+.heart{color:var(--nes-red)}
+#hud.hidden{display:none}
+.hudbtn{pointer-events:auto;cursor:pointer;color:var(--nes-blue);font-family:var(--font);background:none;border:none;font-size:clamp(7px,2vw,10px)}
+.hudbtn:hover{color:var(--nes-yellow)}
+
+/* ===== КАРТА-МИР ===== */
+#worldmap{position:relative;width:100%;max-width:820px;margin:0 auto;aspect-ratio:16/10;
+  border:4px solid var(--nes-white);box-shadow:0 0 0 4px var(--nes-black);
+  background:
+    linear-gradient(180deg,#0a1a3a 0%, #10306a 40%, #0f7a3a 40%, #0a5a2a 100%);
+  overflow:hidden;
+}
+#worldmap svg{position:absolute;inset:0;width:100%;height:100%}
+.mapnode{cursor:pointer}
+.mapnode .halo{opacity:0}
+.mapnode.current .halo{opacity:1;animation:halo 1s steps(4) infinite}
+@keyframes halo{50%{opacity:.4}}
+.mapnode.locked{cursor:not-allowed;filter:grayscale(1) brightness(.5)}
+.player-sprite{transition:transform .5s steps(6)}
+.map-hint{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:clamp(6px,1.7vw,9px);color:var(--nes-white);z-index:5}
+.map-hint .blink{color:var(--nes-yellow)}
+
+/* ===== УРОВЕНЬ / диалог теории ===== */
+.dlg{display:flex;gap:14px;align-items:flex-start}
+.avatar{width:52px;height:52px;flex:0 0 52px;image-rendering:pixelated}
+.speech{flex:1}
+.speech .name{color:var(--nes-yellow);font-size:clamp(8px,2.2vw,10px);margin-bottom:8px}
+.speech .txt{font-size:clamp(7px,2vw,10px);line-height:2;min-height:60px}
+.typed::after{content:"▌";color:var(--nes-blue);animation:bl .6s steps(2) infinite}
+
+.progressbar{height:14px;background:var(--nes-dark);border:3px solid var(--nes-white);margin:12px 0;position:relative;box-shadow:0 0 0 3px var(--nes-black)}
+.progressbar i{display:block;height:100%;width:0;background:var(--nes-green2);transition:width .3s steps(8);
+  background-image:repeating-linear-gradient(90deg,var(--nes-green) 0 6px,var(--nes-green2) 6px 12px)}
+
+/* нормы плашка */
+.norms{border:3px dashed var(--nes-blue);padding:10px;margin-top:12px;font-size:clamp(6px,1.7vw,8px);line-height:2}
+.norms .h{color:var(--nes-blue);margin-bottom:6px}
+
+/* ===== мини-игры ===== */
+.arena{margin-top:8px}
+.q{font-size:clamp(8px,2.3vw,11px);color:var(--nes-yellow);margin-bottom:14px;line-height:1.8}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{font-family:var(--font);text-align:left;font-size:clamp(7px,2vw,10px);color:var(--ink);
+  background:var(--nes-dark);border:3px solid var(--nes-gray);padding:12px;cursor:pointer;line-height:1.7;
+  box-shadow:3px 3px 0 var(--nes-black);transition:transform .05s}
+.opt:hover{border-color:var(--nes-blue)}
+.opt:active{transform:translate(2px,2px)}
+.opt.ok{border-color:var(--nes-green2);background:#0a3a1a;animation:pop .2s steps(3)}
+.opt.no{border-color:var(--nes-red);background:#3a0a0a;animation:shk .2s steps(4)}
+@keyframes pop{50%{transform:scale(1.04)}}
+@keyframes shk{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+/* слоты (собери щит / match) */
+.slots{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.slot{display:flex;justify-content:space-between;align-items:center;gap:8px;
+  background:var(--nes-dark);border:3px solid var(--nes-gray);padding:10px;font-size:clamp(6px,1.8vw,9px);cursor:pointer;line-height:1.7}
+.slot:hover{border-color:var(--nes-blue)}
+.slot.active{border-color:var(--nes-yellow);box-shadow:0 0 0 2px var(--nes-yellow)}
+.slot.ok{border-color:var(--nes-green2);background:#0a3a1a}
+.slot .v{color:var(--nes-gray)}
+.slot.ok .v{color:var(--nes-green2)}
+.parts{display:flex;flex-wrap:wrap;gap:8px}
+.part{font-family:var(--font);font-size:clamp(6px,1.7vw,8px);color:var(--ink);background:var(--nes-navy);
+  border:3px solid var(--nes-blue);padding:9px;cursor:pointer;line-height:1.6;box-shadow:2px 2px 0 var(--nes-black)}
+.part:active{transform:translate(2px,2px)}
+.part.used{opacity:.25;pointer-events:none}
+.part.no{animation:shk .2s steps(4);border-color:var(--nes-red)}
+
+/* тайминг-бар (аркады на время) */
+.timer{height:12px;background:var(--nes-dark);border:3px solid var(--nes-white);margin-bottom:12px;box-shadow:0 0 0 3px var(--nes-black)}
+.timer i{display:block;height:100%;width:100%;background:var(--nes-red);transition:width .1s linear}
+.timer i.warn{background:var(--nes-red2)}
+
+.combo{position:fixed;top:40%;left:50%;transform:translateX(-50%) scale(0);z-index:80;
+  font-size:clamp(12px,4vw,22px);color:var(--nes-yellow);text-shadow:3px 3px 0 var(--nes-red2);pointer-events:none}
+.combo.show{animation:comboA .6s steps(6) forwards}
+@keyframes comboA{0%{transform:translateX(-50%) scale(0)}40%{transform:translateX(-50%) scale(1.2)}100%{transform:translateX(-50%) scale(1);opacity:0}}
+
+.fb{margin-top:12px;padding:10px;font-size:clamp(6px,1.8vw,9px);line-height:1.9;border:3px solid var(--nes-gray);background:var(--nes-dark);display:none}
+.fb.show{display:block;animation:pop .2s steps(3)}
+.fb.good{border-color:var(--nes-green2)}
+.fb.bad{border-color:var(--nes-red)}
+
+/* всплывашка очков */
+.pop-score{position:absolute;font-size:clamp(8px,2.2vw,12px);color:var(--nes-yellow);z-index:70;pointer-events:none;
+  animation:floatUp .8s steps(8) forwards;text-shadow:2px 2px 0 var(--nes-black)}
+@keyframes floatUp{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-40px);opacity:0}}
+
+/* ===== оверлеи: старт, gameover-победа ===== */
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:18px;min-height:70vh}
+.logo-spark{font-size:clamp(30px,10vw,64px);color:var(--nes-yellow);text-shadow:4px 4px 0 var(--nes-red2), 8px 8px 0 rgba(0,0,0,.6);animation:sparkPulse 1.4s steps(2) infinite}
+@keyframes sparkPulse{50%{color:var(--nes-white)}}
+.press{font-size:clamp(8px,2.4vw,12px);color:var(--nes-white)}
+.copyfoot{font-size:clamp(5px,1.5vw,7px);color:var(--nes-gray);text-align:center;margin-top:18px;line-height:2}
+
+/* сертификат-каринка */
+.trophy{font-size:clamp(40px,12vw,80px);animation:bob 1s steps(2) infinite}
+@keyframes bob{50%{transform:translateY(-6px)}}
+.stars8{font-size:clamp(14px,4vw,24px);color:var(--nes-yellow);letter-spacing:6px}
+
+/* модалка звука */
+#soundgate{position:absolute;inset:0;z-index:120;background:rgba(13,11,22,.92);display:flex;align-items:center;justify-content:center;text-align:center}
+#soundgate .box{max-width:520px}
+
+.mini-map-legend{font-size:clamp(6px,1.6vw,8px);color:var(--nes-gray);text-align:center;margin-top:10px;line-height:2}
+
+/* адаптив: мельче на телефоне */
+@media (max-width:520px){
+  .view{padding:12px 10px}
+  .box{padding:12px}
+}
+
+/* ===== апгрейд: боссы, тряска, HP, анимации ===== */
+#screen.shake{animation:screenShake .4s steps(4)}
+@keyframes screenShake{0%,100%{transform:translate(0,0)}25%{transform:translate(-4px,2px)}50%{transform:translate(4px,-2px)}75%{transform:translate(-2px,-3px)}}
+
+.bossbar{margin-bottom:14px;text-align:center}
+.bossname{font-size:clamp(9px,2.6vw,13px);color:var(--nes-red);text-shadow:2px 2px 0 var(--nes-black);margin-bottom:8px}
+.hpouter{height:14px;background:var(--nes-dark);border:3px solid var(--nes-white);box-shadow:0 0 0 3px var(--nes-black);overflow:hidden}
+.hpbar{display:block;height:100%;width:100%;background:var(--nes-red);transition:width .3s steps(6);
+  background-image:repeating-linear-gradient(90deg,var(--nes-red) 0 6px,var(--nes-red2) 6px 12px)}
+.hpbar.low{background:var(--nes-red2);animation:bl .4s steps(2) infinite}
+.bosssprite{margin-top:10px;display:inline-block}
+.bosssprite.bosshit{animation:bosshit .3s steps(3)}
+@keyframes bosshit{0%,100%{filter:none}50%{filter:brightness(3) hue-rotate(-30deg)}}
+
+/* сцена в диалоге — рамка убрана, canvas сам */
+#sceneBox canvas{margin:0 auto}
