@@ -30,4 +30,4 @@ Deploy from a branch -> main -> /(root).
 ## Настройка
 - Ссылка на курс — COURSE_URL в начале assets/js/data.js
 - Прогресс/монеты — localStorage (ключ alfa_dendy_v1)
-- Звук включается по PRESS START (требование браузеров)
+- Звук включается по PRESS START (требование браузеров) 
